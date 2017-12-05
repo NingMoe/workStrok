@@ -1,0 +1,19 @@
+雷达文件:
+
+    路径: 
+        东莞: F/dgwx/public/img/radar/dg/yyyymmdd
+            (以日期命名的文件夹,如20170615,需要客户每天建立一个。)
+
+        珠三角: F/dgwx/public/img/radar/pearlRiverDelta/yyyymmdd
+            (以日期命名的文件夹，如20170615,需要客户每天建立一个。)
+
+云图：
+    路径： 
+        F/dgwx/public/img/fy2g/yyyymmdd
+        (以日期命名的文件夹，如20170615,需要客户每天建立一个。)
+
+自动站:
+    路径: 
+        F/dgwx/public/json/station/dgzdzdata.js (每天数据覆盖嘛？)
+
+将以上模块 相应的文件推送到相应的文件夹内

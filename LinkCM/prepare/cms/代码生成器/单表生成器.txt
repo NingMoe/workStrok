@@ -1,0 +1,69 @@
+CMS 代码生成器
+
+第一步：建表
+    CREATE TABLE `dyw_fljc` (
+      `id` char(32) NOT NULL COMMENT 'UUID 唯一主键',
+      `seq` varchar(20) DEFAULT NULL COMMENT '序号',
+      `unit` varchar(200) DEFAULT NULL COMMENT '单位名称',
+      `building` varchar(200) DEFAULT NULL COMMENT '建筑物名称',
+      `address` varchar(200) DEFAULT NULL COMMENT '地址',
+      `check_time` datetime DEFAULT NULL COMMENT '检测时间',
+      `check_result` varchar(200) DEFAULT NULL COMMENT '检测结果',
+      `next_check_time` datetime DEFAULT NULL COMMENT '下次检测时间',
+      `remarks` varchar(1000) DEFAULT NULL COMMENT '备注',
+      PRIMARY KEY (`id`),
+      KEY `idx_fljc_seq` (`seq`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='防雷检测';
+
+第二步：配置单表代码生成器
+    ① 修改 src/main/resources/lcms 目录下的 lcms_database.properties 文件
+        主要修改数据库链接名，数据库名称，数据库账户，数据库密码
+            url=jdbc:mysql://localhost:3306/linkcm_cms?useUnicode=true&characterEncoding=UTF-8
+            username=root
+            password=
+            database_name=linkcm_cms
+    ② 修改 src/main/resources/lcms 目录下的 lcms_config.properties 文件
+        主要修改页面生成目录，代码根包名，数据表主键名称，代码存放目录
+            webroot_package=src.main.webapp
+            bussi_package=com.linkcm.platform
+            lcms_generate_table_id=id
+            project_path=L:/Local/CodeGenerate/
+
+第三步：
+    启动单表生成器 LcmsOneGUI，启动完毕之后，在UI中键入配置，见 单表配置.jpg
+    生成代码结构如下：
+        L:\Local\CodeGenerate>tree /f
+        卷 开发 的文件夹 PATH 列表
+        卷序列号为 0000003E 6042:EAE9
+        L:.
+        └─src
+            └─main
+                ├─java
+                │  └─com
+                │      └─linkcm
+                │          └─platform
+                │              ├─controller
+                │              │  └─dyw
+                │              │          FljcController.java
+                │              │
+                │              ├─entity
+                │              │  └─dyw
+                │              │          FljcEntity.java
+                │              │
+                │              └─service
+                │                  ├─dyw
+                │                  │      FljcServiceI.java
+                │                  │
+                │                  └─impl
+                │                      └─dyw
+                │                              FljcServiceImpl.java
+                │
+                └─webapp
+                    └─dyw
+                            fljc.html
+                            fljcList.html
+    如果代码没有问题，则直接其复制粘贴到相应的包目录下，通常需要修改页面的存储路径，以及 Controller 层的 ModelAndView 返回视图值
+
+第四步：
+    启动 CMS，登陆进后台，在 系统管理 --> 菜单管理
+    添加菜单，见 配置菜单.jpg

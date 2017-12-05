@@ -1,0 +1,31 @@
+前端部署:
+
+-- scp E:/sz/dss.zip root@10.153.121.5:/root
+ssh root@10.153.121.5
+./dev-deploy.sh
+szmb#1633
+scp E:/webspace/sz/dist/dss.zip root@10.153.121.5:/root
+./deploy.sh
+
+scp D:/LinkCM/project/web/shenzhenD/dist/dss.zip root@10.153.121.5:/root
+
+choy.0
+
+2017/7/25 
+
+1. 删除持续时间信息；
+2. 持续时间修改为：“积水深度”，积水深度判断规则：低风险：20cm以下；中风险：20cm-40cm；高风险：40cm以上；
+3. 强降水模型-快报-雨情-最大累计降雨量：市、区均需要显示自动站信息 ，增加市的显示效果；
+4. 内涝：删除浮窗显示效果；
+5. 内涝：默认显示低风险以上级别；
+6. 修改风险阈值，阈值参考下图；
+7. 雷电：雷电只显示两个级别，危险区、高危险区；分别对应的颜色：黄、红
+
+2017/7/26
+
+bug:
+http://10.153.121.5/dss-data-sz/gd_image/image!loadVideoWMS.action?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&FORMAT=image%2Fpng&TRANSPARENT=true&LAYERS=video&PARAM=%7B%22AREACODE%22%3A%22440306%22%2C%22TYPE%22%3A%22VIDEO_TRAFFIC%2C%22%2C%22FILENAME%22%3A%22D%3A%2FFTP%2Fput%2Fvideo%2Fvideo_list.xlsx%22%2C%22RID%22%3A%22DCF5AE32D7%22%7D&CRS=EPSG%3A3857&STYLES=&WIDTH=1366&HEIGHT=633&BBOX=12626968.549270287%2C2574976.064178146%2C12731381.529907838%2C2623284.2660543774&ZOOM=11&EXTENT=113.42998839906,22.52749315747586,114.36794616273187,22.92775586199255
+
+天气实景，请求城市编码精确到区时，返回数据都是空
+
+

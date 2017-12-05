@@ -1,0 +1,639 @@
+<template>
+    <div>
+        <div class="tools">
+            <div class="top_tools">
+                <ul>
+                    <li v-for="item in list" @click="initTool($key, 'list')" title={{item.title}} :class="[$key,{tooled:item.stat}]"></li>
+                </ul>
+            </div>
+            <div class="bottom_tools" v-if="secondStatus">
+                <ul>
+                	<li v-for="item in secondList">
+	                    <div @click="initTool($key,'secondList')"  :class="{'s-item':item.stat}">
+	                        <i class={{$key}}></i><label>{{item.name}}</label>
+	                    </div>
+                        <v-opacity v-if="opacity==true && $key === 'opacity'"></v-opacity>
+                   </li>
+                </ul>
+            </div>
+        </div>
+        <v-atwill v-if="atwill==true"></v-atwill>
+        <v-message v-if="message==true"></v-message>
+        <v-distance v-if="distance==true"></v-distance>
+        <v-global-search v-if="globalSearch==true"></v-global-search>
+        <v-econtrol v-if="econtrol==true"></v-econtrol>
+        <v-about v-if="about==true"></v-about>
+        <v-suggestion v-if="suggestion==true"></v-suggestion>
+        <v-video v-if="video==true"></v-video>
+        <v-decision-serve v-if="decisionServe==true && userName !== 'test'"></v-decision-serve>
+        <v-tab v-if="tab==true" :status-pop.sync="secondList.tab.stat"></v-tab>
+        <v-gridrain v-if="gridRain==true" ></v-gridrain>
+        <v-avoid v-if="list.tools_path_pilot.stat==true" class="tool-avoid"></v-avoid>
+        <v-graticule v-if="secondList.graticule.stat==true"></v-graticule>
+        <v-analysisrain v-if="analysisStat==true" :polygon="analyWkt"></v-analysisrain>
+        <v-fourlibrary v-if="fourlibrary"></v-fourlibrary>
+    </div>
+</template>
+
+<script>
+
+    import lmap from '../../util/lmap/lmap'
+    import config from '../../config'
+    import { updateParam } from '../../vuex/store'
+    import Atwill from './tools/Atwill'
+    import Message from './tools/Message'
+    import Distance from '../gis/Distance'
+    import GlobalSearch from './tools/GlobalSearch'
+    import Econtrol from './tools/Econtrol'
+    import About from './tools/About'
+    import Suggestion from './tools/Suggestion'
+    import Video from './tools/Video'
+    import DecisionServe from './tools/DecisionServe'
+	import Tab from './tools/TopicSetting'
+    import Opacity from './tools/Opacity'
+    import GridRain from './tools/GridRain'
+    import Avoid from '../model/mainLegend/legendItems/Avoid'
+    import Graticule from '../gis/Graticule'
+    import AnalysisRain from './tools/AnalysisRain'
+    import FourLibrary from './tools/FourLibrary'
+
+    export default {
+        components: {
+            'v-message': Message,
+            'v-distance': Distance,
+            'v-global-search': GlobalSearch,
+            'v-econtrol': Econtrol,
+            'v-about': About,
+            'v-suggestion': Suggestion,
+            'v-atwill': Atwill,
+            'v-video': Video,
+            'v-decision-serve': DecisionServe,
+            'v-opacity': Opacity,
+            'v-tab': Tab,
+            'v-gridrain': GridRain,
+            'v-avoid': Avoid,
+            'v-graticule': Graticule,
+            'v-analysisrain': AnalysisRain,
+            'v-fourlibrary':FourLibrary
+        },
+        data() {
+            return {
+                map: '',
+                list: {
+                    atwill: { title: '划任意面', stat: false },
+                    gridRain: { title: '格点雨量', stat: false },
+                    econtrol: { title: '应急指挥工具', stat: false },
+                    decisionServe: { title: '决策服务', stat: false },
+                    tools_path_pilot: { title: '路线导航', stat: false },
+                    globalSearch: { title: '全局搜索', stat: false },
+                    video: { title: '视频回传', stat: false }, 
+                    fourlibrary:{title:"应急库",stat:false},
+                    tools_others: { title: '其他工具', stat: false }
+                },
+                secondList: {
+                    kuxuan: { name: '框选', stat: false },
+                    distance: { name: '测距', stat: false },
+                    graticule: { name: '经纬线', stat: false },
+                    tab: { name: '标签', stat: false },
+                    suggestion: { name: '意见', stat: false },
+                    message: { name: '信息追踪', stat: false },
+                    zaiqing: { name: '灾情', stat: false },
+                    areaPolygon: { name: '遮罩', stat: false },
+                    opacity: { name: '透明度', stat: false },
+                    about: { name: '关于', stat: false },
+                    enlarge: { name: '大屏', stat: false },
+                    exit: { name: '退出', stat: false }
+                },
+                secondStatus: false,
+                topicSet: false,
+                drawParam: null, // 画笔对象
+                layer: null, // 框选工具图层
+                analysisStat: false, // 雨量研判详情窗口
+                analyWkt: '',
+            }
+        },
+
+        vuex: {
+            getters: {
+                dss_sj: state => state.dss_sj,
+                dss: state => state.dss,
+                atwill: state => state.atwill.status,
+                message: state => state.message.status,
+                distance: state => state.distance.status,
+                globalSearch: state => state.globalSearch.status,
+                econtrol: state => state.econtrol.status,
+                about: state => state.about.status,
+                suggestion: state => state.suggestion.status,
+                video: state => state.video.status,
+                decisionServe: state => state.decisionServe.status,
+                opacity: state => state.opacity.status,
+                tab: state => state.tab.status,
+                gridRain: state => state.gridRain.status,
+                areaPolygon: state => state.areaPolygon.out,
+                code: state => state.cityCode,
+                big: state => state.big.status,
+                fourlibrary: state => state.fourlibrary.status,
+                userName: state => state.userName,
+            },
+            actions: { updateParam }
+        },
+        watch: {
+            code: function() {
+                this.secondList['areaPolygon'].stat = false;
+                this.updateParam('areaPolygon', 'out', false);
+            },
+            econtrol: function() {
+                this.list.econtrol.stat = this.econtrol;
+            }
+        },
+        methods: {
+            initTool: function(logo, data) {
+                if (!!data && logo != 'zaiqing') {
+                    let stat = true;
+                    if (this[data][logo].stat) stat = false;
+                    this[data][logo].stat = stat;
+                } else {
+                    if (logo != 'zaiqing') this.setStyle(logo);
+                }
+                // 组件数组
+                let updateArr = ['atwill', 'message', 'distance', 'globalSearch', 'econtrol', 'decisionServe', 'video', 'suggestion', 'opacity', 'about', 'gridRain','fourlibrary'];
+                let updaetStat = true;
+                if ($.inArray(logo, updateArr) != -1) {
+                    if (this[logo]) updaetStat = false;
+                    this.updateParam(logo, 'status', updaetStat);
+                } else if (logo == 'tools_others') {
+                    if (this.secondStatus) {
+                        this.secondStatus = false;
+                        this.updateParam('opacity', 'status', false);
+                        this.secondList.opacity.stat = false;
+                    } else {
+                        this.secondStatus = true;
+                    }
+                } else if (logo == 'zaiqing') {
+                    window.open("http://10.148.8.101:8080/?name=qszqzb");
+                } else if (logo == 'tab') {
+                    if (this[logo]) updaetStat = false;
+                    this.updateParam(logo, 'status', updaetStat);
+                } else if (logo == 'areaPolygon') {
+                    if (this[logo]) updaetStat = false;
+                    this.updateParam(logo, 'out', updaetStat);
+                } else if (logo == 'kuxuan') {
+                    if (this.secondList.kuxuan.stat) this.initKuXuan();
+                    else this.clearKuXuan();
+                } else if (logo == 'exit') {
+                    window.location.href = this.dss+'/login/login!LoginOut.action';
+                } else if (logo == 'enlarge') {
+                    this.updateParam('big', 'status', !this.big);
+                }
+            },
+            // 设置样式联动
+            setStyle: function(type) {
+                let stat = true;
+                if (this.list[type].stat) stat = false;
+                this.list[type].stat = stat;
+            },
+            // 框选工具
+            initKuXuan: function() {
+                this.map = config.getParam('map');
+                let drawParam = lmap.draw.initDrawParam(this.map);
+                this.drawParam = drawParam;
+                this.layer = drawParam.layer;
+                this.layer.setZIndex(lmap.getLayerIndex('draw'));
+                this.map.addLayer(this.layer);
+                this.hander = lmap.draw.box(drawParam, this.drawEndEvt);
+                this.modify = lmap.draw.modify(drawParam, this.modifyEvt);
+            },
+            // 清除框选
+            clearKuXuan: function() {
+                this.analysisStat = false;
+                this.map.removeLayer(this.layer);
+                lmap.draw.cancel(this.map, this.hander);
+                lmap.draw.cancel(this.map, this.modify);
+            },
+            // 画笔结束回调函数
+            drawEndEvt: function(type, feature) {
+                let style = { 'strokeColor': '#384163', 'strokeWidth': 1 };
+                feature.set('name', type);
+                feature.set('style', style);
+                this.getWkts(feature);
+            },
+            // 修改完成
+            modifyEvt: function(feature) {
+                if (!this.analysisStat) this.analysisStat = true;
+                let wktArr = this.getAllWkt()[0];
+                this.analyWkt = wktArr;
+            },
+            // 获取所有的wkt
+            getWkts: function(feature) {
+                this.analysisStat = true;
+                let featureWkt = lmap.draw.getHandWkt(feature);
+                lmap.draw.cancel(this.map, this.hander);
+                this.analyWkt = featureWkt;
+            },
+            // 获取所有的边界wkt值
+            getAllWkt: function() {
+                let arr = [];
+                let feats = lmap.draw.getFeatures(this.layer);
+                feats.forEach((it) => {
+                    arr.push(lmap.draw.getWkt(it));
+                });
+                return arr;
+            }
+        },
+        ready: function() {
+            let bigClass = getCookie('bigClass');
+            if (bigClass === 'big') {
+                this.secondList.enlarge.stat = true;
+            } else {
+                this.secondList.enlarge.stat = false;
+            }
+
+            function getCookie(name) {
+                let arr, reg = new RegExp("(^| )" + name + "=([^;]*)(;|$)");
+                if (arr = document.cookie.match(reg)) {
+                    return unescape(arr[2]);
+                } else {
+                    return null;
+                }
+            }
+        }
+    }
+</script>
+
+<style scoped lang="less">
+@import "../../assets/css/common.less";
+
+ul {
+    padding: 0px;
+    margin: 0px 0px;
+
+    li {
+        list-style-type: none;
+    }
+}
+.tools {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    z-index: 4;
+    width: 414px;
+}
+.top_tools {
+    width: auto;
+    position: absolute;
+    right: 0px;
+
+    ul li {
+        float: left;
+        list-style-type: none;
+        color: #a6a9b0;
+        margin-left: 4px;
+        cursor: pointer;
+        width: 21px;
+        height: 21px;
+        line-height: 21px;
+        display: inline-block;
+        font: normal normal normal 14px/0 FontAwesome;
+        font-size: inherit;
+        text-rendering: auto;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        font-size: 13px;
+        text-align: center;
+        position: relative;
+    }
+    ul li:before {
+        content: "";
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        line-height: 16px;
+        text-align: center;
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        margin-left: -8px;
+        margin-top: -9px;            /*-webkit-background-size: 100% auto !important;
+                    background-size: 100% auto !important;*/
+    }
+    ul li:hover {
+        color: @color;
+    }
+    ul li.tooled {
+        background-color: @color;
+        color: #fff;
+    }
+    ul li.tooled:hover {
+        background-color: @hoverbg;
+    }
+    .atwill:before {
+        background: url("../../assets/img/tools/nhm.svg") no-repeat center center;
+    }
+    .gridRain:before {
+        background: url("../../assets/img/tools/mrain.svg") no-repeat center center;
+    }
+    .econtrol:before {
+        background: url("../../assets/img/tools/mzh.svg") no-repeat center center;
+    }
+    .decisionServe:before {
+        background: url("../../assets/img/tools/mfw.svg") no-repeat center center;
+    }
+    .tools_path_pilot:before {
+        background: url("../../assets/img/tools/mlx.svg") no-repeat center center;
+    }
+    .globalSearch:before {
+        background: url("../../assets/img/tools/mss.svg") no-repeat center center;
+    }
+    .video:before {
+        background: url("../../assets/img/tools/msp.svg") no-repeat center center;
+    }
+    .tools_others:before {
+        background: url("../../assets/img/tools/mmore.svg") no-repeat center center;
+    }
+    .atwill:hover::before {
+        background: url("../../assets/img/tools/s_nhm.svg") no-repeat center center;
+    }
+    .gridRain:hover::before {
+        background: url("../../assets/img/tools/s_mrain.svg") no-repeat center center;
+    }
+    .econtrol:hover::before {
+        background: url("../../assets/img/tools/s_mzh.svg") no-repeat center center;
+    }
+    .decisionServe:hover::before {
+        background: url("../../assets/img/tools/s_mfw.svg") no-repeat center center;
+    }
+    .tools_path_pilot:hover::before {
+        background: url("../../assets/img/tools/s_mlx.svg") no-repeat center center;
+    }
+    .globalSearch:hover::before {
+        background: url("../../assets/img/tools/s_mss.svg") no-repeat center center;
+    }
+    .video:hover::before {
+        background: url("../../assets/img/tools/s_msp.svg") no-repeat center center;
+    }
+    .tools_others:hover::before {
+        background: url("../../assets/img/tools/s_mmore.svg") no-repeat center center;
+    }
+    ul li.tooled.atwill:before {
+        background: url("../../assets/img/tools/s_nhm.svg") no-repeat center center;
+    }
+    ul li.tooled.gridRain:before {
+        background: url("../../assets/img/tools/s_mrain.svg") no-repeat center center;
+    }
+    ul li.tooled.econtrol:before {
+        background: url("../../assets/img/tools/s_mzh.svg") no-repeat center center;
+    }
+    ul li.tooled.decisionServe:before {
+        background: url("../../assets/img/tools/s_mfw.svg") no-repeat center center;
+    }
+    ul li.tooled.tools_path_pilot:before {
+        background: url("../../assets/img/tools/s_mlx.svg") no-repeat center center;
+    }
+    ul li.tooled.globalSearch:before {
+        background: url("../../assets/img/tools/s_mss.svg") no-repeat center center;
+    }
+    ul li.tooled.video:before {
+        background: url("../../assets/img/tools/s_msp.svg") no-repeat center center;
+    }
+    ul li.tooled.tools_others:before {
+        background: url("../../assets/img/tools/s_mmore.svg") no-repeat center center;
+    }
+    ul li.tooled.fourlibrary:before{background: url("../../assets/img/tools/s_nwk.svg") no-repeat center center;}
+     .fourlibrary:before{background: url("../../assets/img/tools/nwk.svg") no-repeat center center;}
+    .fourlibrary:hover::before{background: url("../../assets/img/tools/nwk.svg") no-repeat center center;}
+    
+}
+.bottom_tools {
+    width: 414px;
+    height: 60px;
+    line-height: 30px;
+    background-color: #fff;
+    -webkit-box-shadow: 0 2px 9px 0 rgba(0, 0, 0, .3);
+    box-shadow: 0 2px 9px 0 rgba(0, 0, 0, .3);
+    position: relative;
+    top: 25px;
+    right: -5px;
+
+    ul li {
+        float: left;
+        list-style-type: none;
+        cursor: pointer;
+        height: 26px;
+        line-height: 26px;
+        width: auto;
+        text-align: left;
+        margin: 2px 5px;
+        position: relative;
+        min-width: 56px;
+
+        label {
+            cursor: pointer;
+        }
+        i {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            float: left;
+            margin-right: 2px;
+            margin-top: 6px;
+            -webkit-background-size: 100% auto !important;
+            background-size: 100% auto !important;                  /*background: url("../../assets/img/toolsbar/rightIcon.png") no-repeat;*/
+        }
+        .kuxuan {
+            background: url("../../assets/img/toolsbar/kuxuan.png") no-repeat;
+        }
+        .distance {
+            background: url("../../assets/img/toolsbar/distance.png") no-repeat;
+        }
+        .opacity {
+            background: url("../../assets/img/toolsbar/opacity.png") no-repeat;
+        }
+        .message {
+            background: url("../../assets/img/toolsbar/message.png") no-repeat;
+        }
+        .tab {
+            background: url("../../assets/img/toolsbar/tab.png") no-repeat;
+        }
+        .graticule {
+            background: url("../../assets/img/toolsbar/graticule.png") no-repeat;
+        }
+        .zaiqing {
+            background: url("../../assets/img/toolsbar/zaiqing.png") no-repeat;
+        }
+        .areaPolygon {
+            background: url("../../assets/img/toolsbar/areaPolygon.png") no-repeat;
+        }
+        .suggestion {
+            background: url("../../assets/img/toolsbar/suggestion.png") no-repeat;
+        }
+        .about {
+            background: url("../../assets/img/toolsbar/about.png") no-repeat;
+        }
+        .enlarge {
+            background: url("../../assets/img/toolsbar/enlarge.png") no-repeat;
+        }
+        .exit {
+            background: url("../../assets/img/toolsbar/exit.png") no-repeat;
+        }
+    }
+    ul li:hover {
+        color: @color;
+    }
+    ul li:hover .kuxuan, ul li.s-item .kuxuan {
+        background: url("../../assets/img/toolsbar/s_kuxuan.png") no-repeat;
+    }
+    ul li:hover .distance, ul li.s-item .distance {
+        background: url("../../assets/img/toolsbar/s_distance.png") no-repeat;
+    }
+    ul li:hover .opacity, ul li.s-item .opacity {
+        background: url("../../assets/img/toolsbar/s_opacity.png") no-repeat;
+    }
+    ul li:hover .message, ul li.s-item .message {
+        background: url("../../assets/img/toolsbar/s_message.png") no-repeat;
+    }
+    ul li:hover .tab, ul li.s-item .tab {
+        background: url("../../assets/img/toolsbar/s_tab.png") no-repeat;
+    }
+    ul li:hover .graticule, ul li.s-item .graticule {
+        background: url("../../assets/img/toolsbar/s_graticule.png") no-repeat;
+    }
+    ul li:hover .zaiqing, ul li.s-item .zaiqing {
+        background: url("../../assets/img/toolsbar/s_zaiqing.png") no-repeat;
+    }
+    ul li:hover .areaPolygon, ul li.s-item .areaPolygon {
+        background: url("../../assets/img/toolsbar/s_areaPolygon.png") no-repeat;
+    }
+    ul li:hover .suggestion, ul li.s-item .suggestion {
+        background: url("../../assets/img/toolsbar/s_suggestion.png") no-repeat;
+    }
+    ul li:hover .about, ul li.s-item .about {
+        background: url("../../assets/img/toolsbar/s_about.png") no-repeat;
+    }
+    ul li:hover .enlarge, ul li.s-item .enlarge {
+        background: url("../../assets/img/toolsbar/s_enlarge.png") no-repeat;
+    }
+    ul li:hover .exit, ul li.s-item .exit {
+        background: url("../../assets/img/toolsbar/s_exit.png") no-repeat;
+    }
+    .s-item {
+        color: @color
+    }
+}
+
+/*big*/
+.big .tools {
+    top: 10px
+}
+.big .top_tools {
+    ul li {
+        width: 27px;
+        height: 27px;
+        line-height: 27px;
+        font-size: 15px;
+    }
+    ul li:before {
+        width: 18px;
+        height: 20px;
+        margin-top: -11px;
+        margin-left: -9px;
+        background-size: auto auto !important;
+    }
+    .atwill:before {
+        background: url("../../assets/img/tools/hm.svg") no-repeat center center;
+    }
+    .gridRain:before {
+        background: url("../../assets/img/tools/rain.svg") no-repeat center center;
+    }
+    .econtrol:before {
+        background: url("../../assets/img/tools/zh.svg") no-repeat center center;
+    }
+    .decisionServe:before {
+        background: url("../../assets/img/tools/fw.svg") no-repeat center center;
+    }
+    .tools_path_pilot:before {
+        background: url("../../assets/img/tools/lx.svg") no-repeat center center;
+        margin-left: -11px;
+    }
+    .globalSearch:before {
+        background: url("../../assets/img/tools/ss.svg") no-repeat center center;
+    }
+    .video:before {
+        background: url("../../assets/img/tools/sp.svg") no-repeat center center;
+    }
+    .tools_others:before {
+        background: url("../../assets/img/tools/more.svg") no-repeat center center;
+    }
+    .atwill:hover::before {
+        background: url("../../assets/img/tools/s_hm.svg") no-repeat center center;
+    }
+    .gridRain:hover::before {
+        background: url("../../assets/img/tools/s_rain.svg") no-repeat center center;
+    }
+    .econtrol:hover::before {
+        background: url("../../assets/img/tools/s_zh.svg") no-repeat center center;
+    }
+    .decisionServe:hover::before {
+        background: url("../../assets/img/tools/s_fw.svg") no-repeat center center;
+    }
+    .tools_path_pilot:hover::before {
+        background: url("../../assets/img/tools/s_lx.svg") no-repeat center center;
+    }
+    .globalSearch:hover::before {
+        background: url("../../assets/img/tools/s_ss.svg") no-repeat center center;
+    }
+    .video:hover::before {
+        background: url("../../assets/img/tools/s_sp.svg") no-repeat center center;
+    }
+    .tools_others:hover::before {
+        background: url("../../assets/img/tools/s_more.svg") no-repeat center center;
+    }
+    ul li.tooled.atwill:before {
+        background: url("../../assets/img/tools/s_hm.svg") no-repeat center center;
+    }
+    ul li.tooled.gridRain:before {
+        background: url("../../assets/img/tools/s_rain.svg") no-repeat center center;
+    }
+    ul li.tooled.econtrol:before {
+        background: url("../../assets/img/tools/s_zh.svg") no-repeat center center;
+    }
+    ul li.tooled.decisionServe:before {
+        background: url("../../assets/img/tools/s_fw.svg") no-repeat center center;
+    }
+    ul li.tooled.tools_path_pilot:before {
+        background: url("../../assets/img/tools/s_lx.svg") no-repeat center center;
+    }
+    ul li.tooled.globalSearch:before {
+        background: url("../../assets/img/tools/s_ss.svg") no-repeat center center;
+    }
+    ul li.tooled.video:before {
+        background: url("../../assets/img/tools/s_sp.svg") no-repeat center center;
+    }
+    ul li.tooled.tools_others:before {
+        background: url("../../assets/img/tools/s_more.svg") no-repeat center center;
+    }
+    ul li.tooled.fourlibrary:before{background: url("../../assets/img/tools/s_wk.svg") no-repeat center center;}
+     .fourlibrary:before{background: url("../../assets/img/tools/wk.svg") no-repeat center center;}
+    .fourlibrary:hover::before{background: url("../../assets/img/tools/wk.svg") no-repeat center center;}
+}
+.big .tools {
+    width: 602px;
+}
+.big .bottom_tools {
+    top: 35px;
+    width: 602px;
+    height: 68px;
+
+    ul li {
+        min-width: 85px;
+        height: 30px;
+        line-height: 30px;
+        text-align: left;
+
+        i {
+            margin-top: 6px;
+            width: 20px;
+            height: 20px;
+        }
+    }
+}
+</style>

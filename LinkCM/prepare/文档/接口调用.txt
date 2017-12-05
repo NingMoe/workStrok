@@ -1,0 +1,12 @@
+位置天气实况
+http://113.108.192.98:8989/fl-service/v2/live/current/22.54605355/114.02597366/
+
+七天天气预报
+1.省内：http://113.108.192.98:8989/fl-service/v2/weather/forecast/inside/113.75/23.04/
+2.省外：http://IP:PORT/Project/v2/weather/forecast/outside/{lon}/{lat}
+
+空气质量
+http://113.108.192.98:8989/fl-service/v2/live/aqi/114.02597366/22.54605355/
+
+预警信息
+http://localhost:8080/warn-api/warn/dg/warnByType

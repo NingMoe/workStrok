@@ -1,0 +1,17 @@
+{
+	"type":"FeatureCollection",
+	"crs":{"type":"EPSG","properties":{"code":"4326"}},
+	"features":
+		[
+			{
+				"type":"Feature","geometry":
+				{"type":"Polygon","coordinates":
+					[
+						[[150,40],[150,5],[80,5],[80,40],[150,40]]					
+					]
+				},
+				"properties":null,
+				"id":"440183"
+			}
+		]
+}

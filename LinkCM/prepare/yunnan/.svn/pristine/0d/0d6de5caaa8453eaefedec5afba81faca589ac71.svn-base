@@ -1,0 +1,156 @@
+<template>
+    <div class="map-tab ">
+        <div class="zlist">
+            <ul>
+                <li v-for="item in list"
+                @click="switchMap(item.code)">{{ item.name }}</li>
+            </ul>
+        </div>
+        <div class="blist" v-if="bstatus==true"
+         @mouseover.stop.prevent="showList('dt',true)"
+         @mouseout.stop.prevent="showList('dt',false)">
+            <ul>
+                <li v-for="item in blist" @click="switchBackMap(item.code)">{{ item.name }}</li>
+            </ul>
+        </div>
+    </div>
+</template>
+
+<script>
+    import config from '../../../config'
+    import lmap from '../../../util/lmap/lmap'
+    import { updateParam } from '../../../vuex/store'
+
+    export default {
+        data() {
+            return {
+                list: [
+                    {name:'卫星图',code:'wx'},
+                    {name:'地形图',code:'dx'},
+                    {name:'业务图',code:'dt'}
+                ],
+                blist: [
+                    {name:'业务(备)',code:'DT'},
+                    {name:'地形(备)',code:'DX'},
+                    {name:'卫星(备)',code:'WX'}
+                ],
+                bstatus: false,
+                call: null
+            }
+        },
+        vuex: {
+            actions: {
+                updateParam
+            }
+        },
+        methods: {
+            showList: function(code,bool){
+                if(bool){
+                    clearTimeout(this.call);
+                    if(code=='dt') this.bstatus = bool;
+                    else this.bstatus = !bool;
+                }else{
+                     this.call = setTimeout(()=> {
+                        this.bstatus = bool;
+                    },100);
+                }
+            },
+            switchMap: function(type){
+                var map = config.getParam('map');
+                lmap.switchMap(map,type);
+                this.updateParam('map','mapType',type);
+            },
+            /**备选地图 */
+            switchBackMap: function(type){
+                var map = config.getParam('map');
+                lmap.switchBackMap(map,type);
+                this.updateParam('map','mapType',type.toLowerCase());
+            }
+        }
+    }
+</script>
+
+<style scoped="scoped" lang="less">
+ @import "../../../assets/css/common.less";
+    .map-tab {
+        color: #fff;z-index:4;
+        position: absolute; top: 5px; right: 230px;
+        width: auto;
+    }
+    .zlist {
+        ul li {
+            float: left; 
+            width:40px;
+            height: 20px;
+            line-height: 20px;
+		    cursor: pointer;
+		    float: left;
+		    text-align: center;
+		    color:@colorF;
+   			padding: 0 3px;
+        }
+        ul li:hover{
+            float: left; 
+		    cursor: pointer;
+		    float: left;
+		    text-align: center;
+		    background:@hoverbg;
+    		color:@color;
+   			padding: 0 3px;
+        }
+       /* ul li:last-child{ 
+        	width: 50px;
+		    position: relative;
+		}
+        ul li:last-child::after{
+        	content: "";
+        	display: inline-block;
+        	width: 0;
+		    height: 0;
+		    border-left: 4px solid transparent;
+		    border-right: 4px solid transparent;
+		    border-top: 5px solid #C0C0C0;
+		    margin-left: 2px;
+        }*/
+    }
+    .blist {
+        width:56px; 
+        height:auto;
+        overflow: hidden;
+        position: absolute;
+        z-index: 9999;
+        top:20px;right: 0px;
+        background:#414e61;
+        ul li {
+                width: 100%;
+			    float: left;
+			    cursor: pointer;
+			    color:@colorF;
+			    text-align:center;
+			    height:30px;
+			    line-height:30px;
+        }
+        ul li:hover{
+        	background:@hoverbg;
+    		color:@color;
+        }
+    }
+/*big*/
+.big .map-tab {top:6px;right:286px;}
+.big .zlist ul li{    
+	width: 72px;
+    height: 32px;
+    line-height: 32px;
+}
+.big .zlist ul li:last-child{ 
+		width:76px;
+	}
+.big .blist{
+        width:82px; 
+        top:32px;
+       ul li {
+			    height:48px;
+			    line-height:48px;
+        }
+    }
+</style>

@@ -1,0 +1,50 @@
+应用名称： 气象局微网站
+IP地址： 10.145.203.183（互联网映射：219.130.55.183）操作系统：windows 2008
+硬件配置：4核CPU 8G内存 500G硬盘
+操作系统用户名/密码： administrator/dgqxwx+121
+
+
+
+
+应用名称： 气象局微网站mysql
+IP地址： 10.145.202.42 
+
+操作系统：windows 2008
+硬件配置：4核CPU 8G内存 500G硬盘
+操作系统用户名/密码： administrator/dgqxwx+121
+
+
+
+远程地址：10.152.35.172（跳转机）
+账号：wxyz
+密码：wxyz
+
+
+查询天气实况数据：
+
+http://gd121.cn:80/inc/api/Data/cityLiveJson.json（查询所有城市的实况天气）
+
+gd121.cn/inc/api/Data/cityLive/{cityPY}.json（cityPY替换成当前要查询的城市名）
+
+1. 实况雨量
+2. 温度
+3. 风向
+4. 风 描述
+5. 湿度
+
+
+天气预报：
+
+逐时:gd121.cn/inc/api/Data/city/{cityPY}fost.json（cityPY替换成当前要查询的城市名）
+逐天:gd121.cn/inc/api/Data/city/{cityPY}dayFost.json（cityPY替换成当前要查询的城市名）
+
+1. 日期
+2. 天气状况
+3. 最高最低温度
+4. 风
+
+天气预警：
+gd121.cn/api/yjfb_json.htm
+
+1. 如何区分东莞与全省？
+2. 后台那边是否可以将数据进行区分处理？

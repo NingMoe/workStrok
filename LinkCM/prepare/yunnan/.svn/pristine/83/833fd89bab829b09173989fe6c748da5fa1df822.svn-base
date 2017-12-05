@@ -1,0 +1,1243 @@
+<template>
+<!--  下面的注释为暂时不需要的功能，后期开发需要 不删 ps: 包含 ready 注释 -->
+   <!--  <div id="time" class="time" :class="dyWidth" v-el:time>
+        <div class="timeline" @mouseenter="drag()" @mouseleave="drag()">
+            <div class="datepicker" id="timeline-sys-time" @click="selectSysTime()">
+                <span>{{sysDay}}</span>
+                <span>{{sysHour}}</span>
+            </div>
+            <div class="animate">
+                <div class="time-min-box" v-show="isMin" @mouseenter="hideMinBox(false)" @mouseleave="hideMinBox(true)">
+                    <ul class="time-min">
+                        <li class="time-min-bg" :class="timeMinBg">&nbsp;</li>
+                        <li v-for="item in minItems" :class="{'select-min':item.isSelect}" @click="selectMin(item)">{{item.min}}</li>
+                    </ul>
+                    <ul class="time-min-scale">
+                        <li v-for="item in minItems"><em></em></li>
+                    </ul>
+                </div>
+                <div v-show="isNormal">
+                    <ul class="scale">
+                        <li @mousedown="timeFast(true)" @mouseup="cannelTimeFast()" @mouseout="cannelTimeFast()"></li>
+                        <li class="time-bg" :class="timeBg">&nbsp;</li>
+                        <li v-for="item in hourItems" @mouseenter="hideMinBox(false, item)"  @mouseleave="hideMinBox(true)" @click="selectHour(item)" :class="{ 'select-time': item.isSelect }" :ldisabled="[item.isDisabled]">{{item.hour}}<em :class="{ 'none': !item.isSelect, 'block': item.isSelect && isMin }"></em></li>
+                        <li @mousedown="timeFast(false)" @mouseup="cannelTimeFast()" @mouseout="cannelTimeFast()">></li>
+                    </ul>
+                </div>
+                <div class="star-end-time" v-show="!isNormal">
+                    <div class="start-time-box">{{startTimeBox}}</div>
+                    <div class="end-time-box">{{endTimeBox}}</div>
+                </div>
+                <div class="time-scale-line">
+                    <ul>
+                        <li><em class="disabled"></em></li><li v-for="item in tagItems"><em :class="{'disabled': item.isDisabled}"></em></li><li><em class="disabled"></em></li>
+                    </ul>
+                </div>
+                <div id="timeline-start-time" class="start-time" @click="selectStartTime()" :time-val="startTimeStr"></div>
+                <div id="normal-slider" class="time-slider" v-show="isNormal"></div>
+                <div id="special-slider" class="time-slider" v-show="!isNormal"></div>
+                <div id="timeline-end-time" class="end-time" @click="selectEndTime()" :time-val="endTimeStr"></div>
+            </div>
+            <div class="time-operate">
+                <div v-show="isPlaying" :class="{ 'ospeed': isSpeed, 'tspeed': !isSpeed }" @click="speed()"></div>
+                <div @click="play()" :class="{ 'playing': isPlaying, 'stop': !isPlaying }"></div>
+                <div class="reset" @click="reset"></div>
+                <div @click="lock()" :class="{ 'lock': isLock, 'unlock': !isLock }"></div>
+            </div>
+            <div class="drag" v-show="isDrag" v-el:drag></div>
+        </div>
+    </div> -->
+</template>
+
+<script>
+    import TimeUtil from '../../util/tools/TimeUtil'
+    import { updateParam } from '../../vuex/store'
+    import config from 'src/config'
+    import WinDrag from 'util/tools/WinDrag'
+
+    import 'jquery-ui/ui/widgets/slider'
+    import 'jquery-ui/themes/base/slider.css'
+    import 'jquery-ui/themes/base/theme.css'
+    import '../../util/timepicker/timepicker'
+
+    export default {
+        data() {
+            return {
+                hourItems: [],
+                tagItems: [],
+                minItems: [],
+                sysDay: null,
+                sysHour: null,
+                startTimeBox: null,
+                endTimeBox: null,
+                startTimeStr: '',
+                endTimeStr: '',
+                timeMinBg: 'minBg-0',
+                timeBg: 'timeBg-8',
+                timeRange: [0, 11],
+                isPlaying: false,
+                isLock: false,
+                isSpeed: true,
+                isNormal: true,
+                isDrag: false,
+                isMin: false,
+                isBodyZoom: false
+            }
+        },
+        vuex: {
+            getters: {
+                dss_sj: state => state.dss_sj,
+                lifeTime: state => state.time.lifeTime,
+                sysTime: state => state.time.sysTime,
+                sysMinTime: state => state.time.sysMinTime,
+                isRadar: state => state.radar.status,
+                isThunder: state => state.thunder.status,
+                isSite: state => state.site.status,
+                isShip: state => state.ship.status,
+                isCloud: state => state.cloud.status,
+                isModel: state => state.model.status,
+                isTyphoon: state => state.typhoon.status,
+                loadArr: state => state.time.loadArr
+            },
+            actions: { updateParam }
+        },
+        computed: {
+            dyWidth: function() {
+                var style = 'time-normal';
+                if (this.isPlaying)
+                    style = 'time-play';
+                return style;
+            }
+        },
+        watch: {
+            'lifeTime': function() {
+                if (!this.isLock) {
+                    this.startTime = TimeUtil.addTime(this.lifeTime, -8, 'HH');
+                    this.init();
+                }
+            },
+            loadArr: function(loadArr) {
+                let onNum = 0;
+                if (this.isRadar) onNum += 1;
+                if (this.isThunder) onNum += 1;
+                if (this.isSite) onNum += 1;
+                if (this.isShip) onNum += 1;
+                if (this.isCloud) onNum += 1;
+                if (this.isModel) onNum += 1;
+                if (this.isTyphoon) onNum += 1;
+                loadArr = loadArr.substr(0, loadArr.length - 1);
+                let tempArr = loadArr.split(',');
+                let num = Math.round(onNum / 2);
+                if (this.PlayTimer) window.clearTimeout(this.PlayTimer);
+                if (loadArr) {
+                    if ((this.isRadar || this.isThunder || this.isSite) && this.isNormal) {
+                        let time = 0;
+                        if (tempArr.length > 1 || this.minItems[0].isSelect) {
+                            time = 380;
+                        } else if (this.isRadar || this.isThunder || this.isSite) {
+                            time = 150;
+                        }
+                        this.PlayTimer = window.setTimeout(() => {
+                            if (this.PlayTimer) window.clearTimeout(this.PlayTimer);
+                            this.minNextFrame();
+                            this.updateParam('time', 'loadArr', '');
+                        }, time);
+                    } else {
+                        if ((tempArr.length > 2) || (tempArr.length === onNum)) {
+                            this.PlayTimer = window.setTimeout(() => {
+                                this.nextFrame();
+                                this.updateParam('time', 'loadArr', '');
+                            }, 380);
+                        }
+                    }
+                }
+            },
+            isRadar: function(state) {
+                this.minBox();
+            },
+            isThunder: function(state) {
+                this.minBox();
+            },
+            isSite: function(state) {
+                this.minBox();
+            }
+        },
+        methods: {
+            minBox: function() {
+                if (!this.isRadar && !this.isThunder && !this.isSite) {
+                    this.isMin = false;
+                    this.minItems = [];
+                } else if ((this.isRadar || this.isThunder || this.isSite) && this.isNormal) {
+                    // this.isMin = true;
+                    // this.showMinBox(this.selectTimeObj);
+                }
+            },
+            init: function() {
+                this.hourItems = [];
+                this.selectIndex = 0;
+                if (this.isNormal) {
+                    this.draw([0, 11], true);
+                    this.sliderHandle = null;
+                    // this.selectHour(this.selectTimeObj);
+                    this.timeRange = [0, 11];
+                    $('#normal-slider').slider({
+                        range: true,
+                        min: 0,
+                        max: 11,
+                        values: this.timeRange,
+                        slide: (event, ui) => {
+                            if (this.isPlaying) {
+                                return;
+                            }
+                            this.draw(ui.values, false);
+                            // this.hourItems[ui.values[0]].isSelect = true;
+                            this.selectTimeObj = this.hourItems[ui.values[0]];
+                            this.selectHour(this.selectTimeObj);
+                            this.timeRange = ui.values;
+                        }
+                    });
+                } else {
+                    var max = this.sliderMax;
+                    this.isNormal = false;
+                    $('#special-slider').slider({
+                        min: 0,
+                        max: max,
+                        value: 0,
+                        slide: (event, ui) => {
+                            if (this.isPlaying) {
+                                return;
+                            }
+                            this.selectIndex = ui.value;
+                            this.selectTime({
+                                date: TimeUtil.addTime(this.startTime, ui.value, 'HH')
+                            });
+                        }
+                    });
+                    for (var i = 0; i <= max; i++) {
+                        this.hourItems.push({
+                            date: TimeUtil.addTime(this.startTime, i, 'HH')
+                        });
+                    }
+                    this.sliderHandle = {
+                        $obj: $('#special-slider').find('span'),
+                        left: Number(100 / max).toFixed(5)
+                    };
+                    this.startTimeBox = TimeUtil.format(this.startTime, 'MM-dd HH:mm');
+                    this.endTime = TimeUtil.addTime(this.startTime, max, 'HH');
+                    this.endTimeBox = TimeUtil.format(this.endTime, 'MM-dd HH:mm');
+                    this.selectTime({
+                        date: this.startTime
+                    });
+                    this.tagItems = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+                }
+                this.startTimeStr = TimeUtil.format(this.startTime, 'yyyyMMddHHmmss');
+                this.endTimeStr = TimeUtil.format(TimeUtil.addTime(this.startTime, 12, 'HH'), 'yyyyMMddHHmmss');
+            },
+            speed: function() {
+                this.isSpeed = !this.isSpeed;
+            },
+            lock: function() {
+                this.isLock = !this.isLock;
+            },
+            drag: function() {
+                this.isDrag = !this.isDrag;
+            },
+            reset: function() {
+                if (this.isLock || this.isPlaying) {
+                    return;
+                } else {
+                    this.startTime = TimeUtil.addTime(this.lifeTime, -8, 'HH');
+                    this.isNormal = true;
+                    this.init();
+                }
+            },
+            play: function() {
+                if ((this.isRadar || this.isThunder || this.isSite) && this.isNormal) {
+                    this.isMin = true;
+                    this.showMinBox(this.selectTimeObj);
+                }
+                this.isPlaying = !this.isPlaying;
+                this.updateParam('time', 'isPlaying', this.isPlaying);
+                this.isLock = true;
+                var that = this;
+                if (this.isPlaying) {
+                    this.nextFrame();
+                } else {
+                    this.isMin = false;
+                    window.clearTimeout(this.PlayTimer);
+                    window.clearTimeout(this.callbackTimer);
+                    this.updateParam('time', 'loadArr', '');
+                }
+            },
+            minNextFrame: function() {
+                let minItem = this.selectMinItem;
+                minItem.isSelect = false;
+                let minIndex = this.minItems.indexOf(minItem);
+                let nextMinItem;
+                if (minIndex + 1 > 9) {
+                    let hourItem = this.selectTimeObj;
+                    hourItem.isSelect = false;
+                    let hourIndex = this.hourItems.indexOf(hourItem);
+                    let nextHourItem;
+                    let endIndex = this.timeRange[1];
+                    if (hourIndex + 1 > endIndex) {
+                        nextHourItem = this.hourItems[this.timeRange[0]];
+                    } else {
+                        nextHourItem = this.hourItems[hourIndex + 1];
+                    }
+                    nextHourItem.isSelect = true;
+                    this.showMinBox(nextHourItem);
+                    this.selectMin(this.selectMinItem);
+                } else {
+                    nextMinItem = this.minItems[minIndex + 1];
+                    nextMinItem.isSelect = true;
+                    this.selectMin(nextMinItem);
+                }
+                if (!(this.isRadar || this.isThunder || this.isSite)) {
+                    this.nextFrame();
+                }
+            },
+            nextFrame: function() {
+                if ((this.isRadar || this.isThunder || this.isSite) && this.isNormal) {
+                    this.minNextFrame();
+                } else {
+                    if (this.isPlaying) {
+                        var tempObj;
+                        if (this.isNormal) {
+                            this.selectTimeObj.isSelect = false;
+                            var selectIndex = this.hourItems.indexOf(this.selectTimeObj);
+                            var nextIndex = selectIndex + 1;
+                            var startIndex = this.range[0];
+                            var endIndex = this.range[1];
+                            if (nextIndex <= endIndex) {
+                                tempObj = this.hourItems[nextIndex];
+                            } else {
+                                tempObj = this.hourItems[startIndex];
+                            }
+                            this.selectHour(tempObj, 'frame');
+                        } else {
+                            var sliderHandle = this.sliderHandle;
+                            var nextIndex = this.selectIndex + 1;
+                            if (nextIndex > this.sliderMax) {
+                                nextIndex = 0;
+                            }
+                            var tempLeft = Number(nextIndex * sliderHandle.left).toFixed(5);
+                            tempLeft = tempLeft > 100 ? 100 : tempLeft;
+                            sliderHandle.$obj.css('left', tempLeft + '%');
+                            tempObj = this.hourItems[nextIndex];
+                            this.selectIndex = nextIndex;
+                            this.selectTime(tempObj);
+                        }
+                    }
+                    if (this.PlayTimer) {
+                        window.clearTimeout(this.PlayTimer);
+                    }
+                    var speed = this.isSpeed ? 1500 : 750;
+                    this.PlayTimer = window.setInterval(() => {
+                        this.nextFrame();
+                        this.updateParam('time', 'loadArr', '');
+                    }, speed);
+                }
+            },
+            setTime: function(type, date) {
+                var endTime = this.endTime;
+                var startTime = this.startTime;
+                if (type === 'start') {
+                    startTime = date;
+                } else if (type === 'end') {
+                    endTime = date;
+                }
+                var tempDate = TimeUtil.dateBetween(startTime, endTime);
+                var hour = tempDate.hour + tempDate.date * 24;
+                if (hour >= 12) {
+                    this.isNormal = false;
+                    this.sliderMax = Number(hour);
+                    this.startTime = startTime;
+                } else {
+                    this.isNormal = true;
+                    this.startTime = startTime;
+                    this.endTime = endTime;
+                }
+                this.init();
+            },
+            selectSysTime: function() {
+                var that = this;
+                var sysTimeStr = TimeUtil.format(this.sysTime, 'yyyy,MM,dd,HH,mm,ss');
+                $('#timeline-sys-time').unbind().timepicker({
+                    date: sysTimeStr,
+                    format: 'yyyyMMddHHmmss',
+                    minLock: true,
+                    secondLock: true,
+                    timeShowLock: false
+                }).on({
+                    'console.timepicker': function(e) {
+                        that.startTime = TimeUtil.addTime(e.date, -8, 'HH');
+                        that.isNormal = true;
+                        that.init();
+                    }
+                });
+            },
+            selectStartTime: function() {
+                var that = this;
+                var sysTimeStr = TimeUtil.format(this.startTime, 'yyyy,MM,dd,HH,mm,ss');
+                $('#timeline-start-time').unbind().timepicker({
+                    'maxTime': 'timeline-end-time',
+                    date: sysTimeStr,
+                    format: 'yyyyMMddHHmmss',
+                    minLock: true,
+                    secondLock: true,
+                    timeShowLock: false
+                }).on({
+                    'console.timepicker': function(e) {
+                        that.setTime('start', e.date);
+                    }
+                });
+            },
+            selectEndTime: function() {
+                var that = this;
+                var sysTimeStr = TimeUtil.format(this.endTime, 'yyyy,MM,dd,HH,mm,ss');
+                $('#timeline-end-time').unbind().timepicker({
+                    'minTime': 'timeline-start-time',
+                    date: sysTimeStr,
+                    format: 'yyyyMMddHHmmss',
+                    minLock: true,
+                    secondLock: true,
+                    timeShowLock: false
+                }).on({
+                    'console.timepicker': function(e) {
+                        that.setTime('end', e.date);
+                    }
+                });
+            },
+            selectTime: function(item, type) {
+                var date, sysDate, sysMinDate;
+                if (type === 'min') {
+                    date = TimeUtil.clearMMSS(item.date);
+                    sysDate = TimeUtil.format(item.date, 'MM-dd,HH:mm').split(',');
+                    this.selectTimeObj.isSelect = false;
+                    this.selectTimeObj = item.hourData;
+                    this.selectTimeObj.isSelect = true;
+                    sysMinDate = item.date;
+                } else {
+                    date = TimeUtil.convertToDate(item.date);
+                    sysDate = TimeUtil.format(date, 'MM-dd,HH:mm').split(',');
+                    this.selectTimeObj = item;
+                    sysMinDate = date;
+                    // if (this.minItems[0]) {
+                    //     this.selectMin(this.minItems[0])
+                    // }
+                }
+                if (this.setTimeTimer) {
+                    window.clearTimeout(this.setTimeTimer);
+                }
+                this.setTimeTimer = window.setTimeout(() => {
+                    this.setDateTime(date, sysMinDate);
+                }, 80);
+                this.sysDay = sysDate[0];
+                this.sysHour = sysDate[1];
+            },
+            setDateTime: function(date, sysMinDate) {
+                this.set('sysMinTime', sysMinDate);
+                this.set('sysTime', date);
+                this.updateParam('typhoon', 'dateTime', TimeUtil.format(date, 'yyyy-MM-dd_HH_mm'));
+                this.updateParam('cloud', 'dateTime', TimeUtil.format(date, 'yyyy-MM-dd_HH_mm'));
+                this.updateParam('model', 'dateTime', TimeUtil.format(date, 'yyyyMMddHHmm'));
+                this.updateParam('dropzone', 'dateTime', TimeUtil.format(date, 'yyyyMMddHHmm'));
+                this.updateParam('wechat', 'dateTime', TimeUtil.format(date, 'yyyyMMddHH'));
+                this.updateParam('ship', 'dateTime', TimeUtil.format(date, 'yyyyMMddHHmm'));
+                this.updateParam('airq', 'dateTime', TimeUtil.format(date, 'yyyy-MM-dd HH:mm:ss'));
+                this.updateParam('agr', 'dateTime', TimeUtil.format(date, 'yyyyMMddHHmm'));
+                this.updateParam('site', 'dateTime', TimeUtil.format(TimeUtil.getMinByModel(sysMinDate, 5), 'yyyyMMddHHmm'));
+                this.updateParam('rainwarn', 'dateTime', TimeUtil.format(date, 'yyyyMMddHH'));
+
+                let radarDate = this.getRadarTime(sysMinDate);
+                this.updateParam('radar', 'checkTime', radarDate.checkTime);
+                this.updateParam('radar', 'dateTime', radarDate.dateTime);
+                this.updateParam('thunder', 'dateTime', TimeUtil.format(sysMinDate, 'yyyyMMddHHmm'));
+
+                let index = this.hourItems.indexOf(this.selectTimeObj);
+                this.timeBg = 'timeBg-' + index;
+
+            },
+            getRadarTime: function(sysMinDate) {
+                let checkTime;
+                let tempDate = new Date();
+                let min = tempDate.getMinutes();
+                min = parseInt(parseInt(min / 6) * 6 - 6);
+                tempDate = TimeUtil.clearMMSS(tempDate);
+                tempDate.setMinutes(min);
+                if (Math.abs(sysMinDate.getMinutes() - tempDate.getMinutes()) < 10) {
+                    checkTime = TimeUtil.format(TimeUtil.clearMMSS(tempDate), 'yyyy-MM-dd_HH_mm');
+                } else {
+                    checkTime = TimeUtil.format(TimeUtil.clearMMSS(tempDate, true), 'yyyy-MM-dd_HH_mm');
+                }
+                sysMinDate = TimeUtil.format(sysMinDate, 'yyyy-MM-dd_HH_mm');
+                return {
+                    checkTime: checkTime,
+                    dateTime: sysMinDate
+                };
+            },
+            selectHour: function(item, param) {
+                if (item.isDisabled) {
+                    return;
+                }
+                if (this.isPlaying && param !== 'frame') {
+                    this.play();
+                }
+                this.showMinBox(item);
+                this.selectTimeObj.isSelect = false;
+                item.isSelect = true;
+                this.selectTime(item);
+            },
+            showMinBox: function(item) {
+                if (this.isRadar || this.isThunder || this.isSite) {
+                    var min = TimeUtil.format(item.date, 'HH');
+                    var dateStr = TimeUtil.format(item.date, 'yyyyMMddHH');
+                    this.minItems = [];
+                    ['00', '06', '12', '18', '24', '30', '36', '42', '48', '54'].forEach((data, index) => {
+                        var tempDate = TimeUtil.convertToDate(dateStr + data + '00');
+                        this.minItems.push({
+                            min: min + ':' + data,
+                            isSelect: index === 0 ? true : false,
+                            date: tempDate,
+                            hourData: item
+                        });
+                    });
+                    this.selectMinItem = this.minItems[0];
+                }
+            },
+            hideMinBox: function(state, item) {
+                if (this.minTimer) {
+                    window.clearTimeout(this.minTimer);
+                }
+                if (!this.isPlaying) {
+                    if (state) {
+                        this.minTimer = window.setTimeout(() => {
+                            this.isMin = false;
+                        }, 150);
+                    } else {
+                        if ((this.isRadar || this.isThunder || this.isSite) && this.isNormal) {
+                            this.isMin = true;
+                            if (item) this.showMinBox(item);
+                        }
+                    }
+                }
+            },
+            selectMin: function(item) {
+                this.minItems.forEach((data) => {
+                    data.isSelect = false;
+                });
+                item.isSelect = true;
+                this.selectMinItem = item;
+                this.selectTime(item, 'min');
+                let index = this.minItems.indexOf(item);
+                this.timeMinBg = 'minBg-' + index;
+            },
+            timeFast: function(isPrev) {
+                if (this.FastTimer) {
+                    window.clearTimeout(this.FastTimer);
+                }
+                if (!isPrev && this.baseTime.getTime() >= TimeUtil.clearMMSS(new Date()).getTime()) {
+                    return;
+                }
+                var that = this;
+                this.FastTimer = window.setTimeout(() => {
+                    that.startTime = TimeUtil.addTime(that.startTime, isPrev === true ? -1 : 1, 'HH');
+                    that.draw(that.range, true);
+                    that.timeFast(isPrev);
+                }, 50);
+            },
+            cannelTimeFast: function() {
+                window.clearTimeout(this.FastTimer);
+            },
+            draw: function(range, isBaseAndSelect) {
+                this.range = range;
+                var startIndex = range[0];
+                var endIndex = range[1];
+                var tempHourItems = [];
+                var tempTagItems = [];
+                var tempStartTime = this.startTime;
+                for (var s = 0; s < startIndex; s++) {
+                    tempTagItems.push({
+                        isDisabled: true
+                    });
+                    tempHourItems.push(createTimeObj(tempStartTime, s, false));
+                }
+                for (var m = startIndex; m < endIndex; m++) {
+                    tempTagItems.push({
+                        isDisabled: false
+                    });
+                    tempHourItems.push(createTimeObj(tempStartTime, m, true));
+                }
+                for (var e = endIndex; e < 12; e++) {
+                    tempTagItems.push({
+                        isDisabled: true
+                    });
+                    tempHourItems.push(createTimeObj(tempStartTime, e, false));
+                }
+
+                function createTimeObj(tempStartTime, index, isDisabled) {
+                    var tempDate = TimeUtil.addTime(tempStartTime, index, 'HH');
+                    var tempHour = TimeUtil.getTimeObj(tempDate, 'Object').hour;
+                    var tempObj = {
+                        hour: tempHour,
+                        date: tempDate,
+                        isSelect: false,
+                        isDisabled: true
+                    };
+                    if (isDisabled) {
+                        tempObj.isDisabled = false;
+                    }
+                    return tempObj;
+                }
+                tempTagItems[endIndex].isDisabled = false;
+                tempHourItems[endIndex].isDisabled = false;
+                var tempObj = tempHourItems[startIndex];
+                if (isBaseAndSelect) {
+                    if (!tempHourItems[8].isDisabled) {
+                        tempObj = tempHourItems[8];
+                        tempObj.isSelect = true;
+                    } else {
+                        tempObj.isSelect = true;
+                    }
+                }
+                this.selectTime(tempObj);
+                this.baseTime = TimeUtil.convertToDate(tempHourItems[8].date);
+                this.startTime = TimeUtil.convertToDate(tempHourItems[0].date);
+                this.endTime = TimeUtil.convertToDate(tempHourItems[11].date);
+                this.hourItems = tempHourItems;
+                this.tagItems = tempTagItems;
+                this.playStartTime = tempTagItems[0];
+                this.playEndTime = tempTagItems[endIndex];
+            },
+            set: function(key, value) {
+                this.updateParam('time', key, value);
+            },
+            setLifeTime: function() {
+                var time = TimeUtil.getNextTimeLong(60) + 1000;
+                var that = this;
+                window.setTimeout(() => {
+                    that.set('lifeTime', TimeUtil.clearMMSS(new Date(), true));
+                    return that.setLifeTime();
+                }, time);
+            },
+            /**使窗口支持拖动功能 */
+            addWinDragEvt: function(elName) {
+                var map = config.getParam('map');
+                let call = setInterval(() => {
+                    let winObj = this.$els[elName];
+                    if (!!winObj)
+                        WinDrag.drag(winObj, this.$els.time, map);
+                    clearInterval(call);
+                }, 10);
+            }
+        },
+        ready: function() {
+            // var tempTime = TimeUtil.clearMMSS(new Date());
+            // this.startTime = TimeUtil.addTime(tempTime, -8, 'HH');
+            // this.set('sysTime', tempTime);
+            // this.set('lifeTime', tempTime);
+            // this.init();
+            // this.setLifeTime();
+            // this.addWinDragEvt('drag');
+        }
+    }
+</script>
+
+<style scoped lang="less">
+@import '../../util/timepicker/timepicker.css';
+@import "../../assets/css/common.less";
+
+.time {
+    position: absolute;
+    z-index: 3;    /*width: 503px;*/
+    height: 49px;
+    bottom: 1px;
+    right: 0;
+}
+.time-normal {
+    width: 503px;
+}
+.time-play {
+    width: 540px;
+}
+.timeline {
+    width: 100%;
+    height: 43px;
+    background: rgba(255, 255, 255, .9);
+    -webkit-box-shadow: 0 2px 9px 0 rgba(0, 0, 0, .3);
+    box-shadow: 0 2px 9px 0 rgba(0, 0, 0, .3);
+    position: relative;
+    padding: 1px 1px 1px 2px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+}
+.scale li:nth-child(11) {
+    border: 1px solid red;
+}
+.scale li {
+    display: inline-block;
+    width: 25px;
+    height: 18px;
+    line-height: 18px;
+    text-align: center;
+    position: relative;
+    font-size: 11px;
+    -webkit-transform: scale(100%);
+    transform: scale(100%);
+}
+.scale li:first-child, .scale li:last-child {
+    font-size: 14px;
+}
+.scale li[ldisabled='true'] {
+    color: #999;
+}
+.scale li[ldisabled='true']:hover {
+    background: #fff;
+}
+.scale li:hover {
+    background: rgba(0, 0, 0, 0.2);
+}
+.scale li em.block {
+    display: block;
+    position: absolute;
+    top: -12px;
+    right: 5px;
+    width: 0;
+    height: 0;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-top: 10px solid #fff;
+    opacity: 1;
+}
+.scale li em.none {
+    display: block;
+    position: absolute;
+    top: -12px;
+    right: 5px;
+    width: 0;
+    height: 0;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-top: 10px solid #fff;
+    opacity: 0;
+}
+.datepicker {
+    float: left;
+    width: 41px;
+    height: 31px;
+    margin-top: 1px;
+    position: relative;
+    cursor: pointer;
+    text-align: center;
+    line-height: 14px;
+    padding-top: 10px;
+    color: #fff;
+    background: #6d82a1;
+    border-radius: 3px;
+    -webkit-border-radius: 3px;
+    -moz-border-radius: 3px;
+}
+.datepicker:hover {
+    background: @hoverbg;
+}
+.datepicker:before {
+    left: 10px;
+}
+.datepicker:after {
+    right: 10px;
+}
+.datepicker:after, .datepicker:before {
+    content: "";
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    top: 3px;
+    background: #fff;
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    border-radius: 4px;
+}
+.datepicker span {
+    display: block;
+}
+.animate {
+    width: auto;
+    position: relative;
+    float: left;
+    height: 42px;
+}
+.time-scale-line {
+    vertical-align: middle;
+    margin-top: 2px;
+    height: 7px;
+
+    ul {
+        height: 7px;
+    }
+}
+.time-scale-line ul li {
+    display: inline-block;
+    width: 25px;
+    height: 3px;
+    border-bottom: 1px solid #6d82a1;
+    position: relative;
+    float: left;
+}
+.time-scale-line ul li em {
+    height: 5px;
+    bottom: 0px;
+    width: 1px;
+    background: #6d82a1;
+    margin-left: 16.5px;
+    display: inline-block;
+    position: absolute;
+}
+.time-scale-line ul li em.disabled {
+    height: 0px;
+}
+.start-time {
+    margin-left: 12px;
+}
+.start-time, .end-time {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border: 2px solid #6d82a1;
+    position: relative;
+    border-radius: 100%;
+    -webkit-border-radius: 100%;
+    -moz-border-radius: 100%;
+}
+.start-time:before, .end-time:before {
+    content: "";
+    display: inline-block;
+    position: absolute;
+    width: 1px;
+    height: 5px;
+    left: 50%;
+    margin-left: -1px;
+    top: 1px;
+    background: #6d82a1;
+}
+.start-time:after, .end-time:after {
+    content: "";
+    display: inline-block;
+    position: absolute;
+    width: 4px;
+    height: 1px;
+    left: 50%;
+    margin-left: -1px;
+    top: 50%;
+    background: #6d82a1;
+}
+.time-operate {
+    position: relative;
+    float: left;
+}
+.star-end-time {
+    height: 20px;
+    width: 100%;
+    position: relative;
+}
+.start-time-box, .end-time-box {
+    display: inline-block;
+    position: absolute;
+}
+.start-time-box {
+    left: 5px;
+}
+.end-time-box {
+    right: 5px;
+}
+.drag {
+    width: 14px;
+    height: 14px;
+    z-index: 3;
+    position: absolute;
+    right: 0px;
+    top: 0px;
+    z-index: 10;
+    cursor: move;
+    background: url("../../assets/img/common/drag.png") no-repeat center;
+}
+.time-min-box {
+    position: absolute;
+    top: -40px;
+    left: -44px;
+    width: auto;
+    text-align: center;
+    background: #FFF;
+    z-index: 2010;
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    border-radius: 4px;
+    width: 506px;
+    height: 32px;
+}
+.time-min li {
+    display: inline-block;
+    text-align: center;
+    margin: 2px;
+    width: 46px;
+}
+.time-min-scale {
+    height: 10px;
+}
+.time-min-scale li {
+    width: 50px;
+    height: 5px;
+    display: inline-block;
+    border-bottom: 1px solid #6d82a1;
+    text-align: center;
+}
+.time-min li:hover {
+    background: rgba(0, 0, 0, 0.2);
+}
+.time-min li.select-min {
+}
+.time-min-scale li em {
+    height: 6px;
+    margin-bottom: 9px;
+    width: 1px;
+    background: #6d82a1;
+    display: inline-block;
+}
+.time-operate div {
+    -webkit-transition: box-shadow .5s;
+    -moz-transition: box-shadow .5s;
+    -o-transition: box-shadow .5s;
+    transition: box-shadow .5s;
+}
+.time-operate div:hover {
+    -webkit-box-shadow: 0 0px 10px 0 rgba(0, 0, 0, 0.5);
+    -moz-box-shadow: 0 0px 10px 0 rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0px 10px 0 rgba(0, 0, 0, 0.5);
+}
+.time-operate div.lock:hover, .time-operate div.unlock:hover {
+    box-shadow: inherit
+}
+.ospeed, .tspeed, .reset {
+    width: 26px;
+    height: 26px;
+    display: inline-block;
+    text-align: center;
+    margin: 8px 3px 0;
+    position: relative;
+    float: left;
+    cursor: pointer;
+    border: 2px solid #6d82a1;
+    -webkit-border-radius: 100%;
+    -moz-border-radius: 100%;
+    border-radius: 100%;
+}
+.playing, .stop {
+    width: 32px;
+    height: 32px;
+    display: inline-block;
+    text-align: center;
+    margin: 4px 1px 0;
+    position: relative;
+    float: left;
+    cursor: pointer;
+    border: 2px solid #414e61;
+    -webkit-border-radius: 100%;
+    -moz-border-radius: 100%;
+    border-radius: 100%;
+}
+.stop:before {
+    content: "";
+    display: inline-block;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    margin-top: -7px;
+    margin-left: -4px;
+    width: 0;
+    height: 0;
+    border-top: 7px solid transparent;
+    border-bottom: 7px solid transparent;
+    border-left: 12px solid #414e61;
+}
+.playing:before, .playing:after {
+    content: "";
+    display: inline-block;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    margin-top: -5px;
+    width: 3px;
+    height: 10px;
+    background: #414e61;
+}
+.playing:before {
+    margin-top: -5px;
+    margin-left: -5px;
+}
+.playing:after {
+    margin-left: 2px;
+}
+.lock, .unlock {
+    width: 22px;
+    width: 32px;
+    display: inline-block;
+    text-align: center;
+}
+.ospeed:before {
+    content: "X1";
+    display: inline-block;
+    width: 100%;
+    line-height: 26px;
+}
+.tspeed:before {
+    content: "X2";
+    display: inline-block;
+    width: 100%;
+    line-height: 26px;
+}
+.lock, .unlock {
+    height: 20px;
+    width: 26px;
+    margin-left: 0px;
+    margin-top: 10px;
+    position: relative;
+    cursor: pointer;
+}
+.lock {
+    background: url('../../assets/img/common/lock.png') no-repeat center;
+}
+.unlock {
+    background: url('../../assets/img/common/unlock.png') no-repeat center;
+}
+.reset:before {
+    content: "";
+    display: inline-block;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    margin-top: -5px;
+    margin-left: -5px;
+    width: 10px;
+    height: 10px;
+    background: #6d82a1;
+}
+.time-min-bg {
+    background: rgba(0, 0, 0, 0.2);
+    position: absolute;
+    width: 46px;
+    height: 16px;
+    transition: transform 150ms;
+}
+.scale li.time-bg {
+    background: rgba(0, 0, 0, 0.2);
+    display: inline-block;
+    width: 25px;
+    height: 18px;
+    text-align: center;
+    position: absolute;
+    transition: transform 150ms;
+    margin-top: 1px;
+}
+.time-min-bg.minBg-0 {
+    transform: translateX(0px);
+}
+.time-min-bg.minBg-1 {
+    transform: translateX(50px);
+}
+.time-min-bg.minBg-2 {
+    transform: translateX(100px);
+}
+.time-min-bg.minBg-3 {
+    transform: translateX(150px);
+}
+.time-min-bg.minBg-4 {
+    transform: translateX(200px);
+}
+.time-min-bg.minBg-5 {
+    transform: translateX(250px);
+}
+.time-min-bg.minBg-6 {
+    transform: translateX(300px);
+}
+.time-min-bg.minBg-7 {
+    transform: translateX(350px);
+}
+.time-min-bg.minBg-8 {
+    transform: translateX(400px);
+}
+.time-min-bg.minBg-9 {
+    transform: translateX(450px);
+}
+.scale li.time-bg.timeBg-0 {
+    transform: translateX(0px);
+}
+.scale li.time-bg.timeBg-1 {
+    transform: translateX(25px);
+}
+.scale li.time-bg.timeBg-2 {
+    transform: translateX(50px);
+}
+.scale li.time-bg.timeBg-3 {
+    transform: translateX(75px);
+}
+.scale li.time-bg.timeBg-4 {
+    transform: translateX(100px);
+}
+.scale li.time-bg.timeBg-5 {
+    transform: translateX(125px);
+}
+.scale li.time-bg.timeBg-6 {
+    transform: translateX(150px);
+}
+.scale li.time-bg.timeBg-7 {
+    transform: translateX(175px);
+}
+.scale li.time-bg.timeBg-8 {
+    transform: translateX(201px);
+}
+.scale li.time-bg.timeBg-9 {
+    transform: translateX(227px);
+}
+.scale li.time-bg.timeBg-10 {
+    transform: translateX(252px);
+}
+.scale li.time-bg.timeBg-11 {
+    transform: translateX(277px);
+}
+
+/*big*/
+.big .time {
+    font-size: 16px;
+}
+.big .time-normal {
+    width: 627px;
+}
+.big .time-play {
+    width: 660px;
+}
+.big .scale li {
+    width: 33px;
+    line-height: 16px;
+    font-size: 16px;
+    -webkit-transform: scale(100%);
+    transform: scale(100%);
+}
+.big .datepicker {
+    font-size: 14px;
+}
+.big .time-scale-line ul li {
+    width: 33px;
+}
+.big .time-scale-line ul li em {
+    margin-left: 22px
+}
+.big .start-time {
+    margin-left: 20px;
+    margin-top: -15px;
+    margin-right: 7px;
+    vertical-align: middle;
+}
+.big div#normal-slider.time-slider {
+    margin-bottom: 7px;
+    width: 372px;
+    margin-left: 5px;
+    margin-right: 11px;
+}
+.big .end-time {
+    margin-top: -15px;
+    vertical-align: middle;
+}
+.big .datepicker {
+    font-size: 14px;
+}
+.big .time-min li {
+    width: 58px;
+}
+.big .time-min-scale li {
+    width: 56px;
+    padding-left: 6px;
+}
+.big .time-min-box {
+    top: -43px;
+    left: -52px;
+    width: 626px;
+    height: 35px;
+}
+.big .time-min-scale li em {
+    margin-bottom: 11px
+}
+.big .time-min li {
+    height: 21px;
+}
+.big .time-min-bg.minBg-0 {
+    transform: translateX(0px);
+}
+.big .time-min-bg.minBg-1 {
+    transform: translateX(62px);
+}
+.big .time-min-bg.minBg-2 {
+    transform: translateX(124px);
+}
+.big .time-min-bg.minBg-3 {
+    transform: translateX(186px);
+}
+.big .time-min-bg.minBg-4 {
+    transform: translateX(248px);
+}
+.big .time-min-bg.minBg-5 {
+    transform: translateX(310px);
+}
+.big .time-min-bg.minBg-6 {
+    transform: translateX(372px);
+}
+.big .time-min-bg.minBg-7 {
+    transform: translateX(434px);
+}
+.big .time-min-bg.minBg-8 {
+    transform: translateX(496px);
+}
+.big .time-min-bg.minBg-9 {
+    transform: translateX(558px);
+}
+.big .scale li.time-bg {
+    margin-top: 3px
+}
+.big .scale li.time-bg.timeBg-0 {
+    transform: translateX(0px);
+}
+.big .scale li.time-bg.timeBg-1 {
+    transform: translateX(33px);
+}
+.big .scale li.time-bg.timeBg-2 {
+    transform: translateX(66px);
+}
+.big .scale li.time-bg.timeBg-3 {
+    transform: translateX(99px);
+}
+.big .scale li.time-bg.timeBg-4 {
+    transform: translateX(132px);
+}
+.big .scale li.time-bg.timeBg-5 {
+    transform: translateX(165px);
+}
+.big .scale li.time-bg.timeBg-6 {
+    transform: translateX(198px);
+}
+.big .scale li.time-bg.timeBg-7 {
+    transform: translateX(231px);
+}
+.big .scale li.time-bg.timeBg-8 {
+    transform: translateX(265px);
+}
+.big .scale li.time-bg.timeBg-9 {
+    transform: translateX(299px);
+}
+.big .scale li.time-bg.timeBg-10 {
+    transform: translateX(332px);
+}
+.big .scale li.time-bg.timeBg-11 {
+    transform: translateX(365px);
+}
+</style>

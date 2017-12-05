@@ -1,0 +1,2 @@
+nansha:
+    南沙气象远程桌面地址：121.8.216.250  帐号：shareAccount密码：share@0719

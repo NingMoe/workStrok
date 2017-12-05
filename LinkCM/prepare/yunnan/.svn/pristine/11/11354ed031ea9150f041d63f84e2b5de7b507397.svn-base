@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <link rel="shortcut icon" href="/logo.ico" type="image/x-icon">
+    <title>应急指挥决策辅助系统</title>
+</head>
+
+<body>
+    <app></app>
+    <!-- built files will be auto injected -->
+</body>
+
+</html>

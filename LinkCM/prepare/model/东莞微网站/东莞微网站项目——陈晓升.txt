@@ -1,0 +1,29 @@
+部署服务器：(windows)
+远程地址：10.152.35.172
+账号：wxyz
+密码：wxyz
+
+数据库所在服务器:  远程地址：10.152.35.172
+jdbc.driver=com.mysql.jdbc.Driver
+jdbc.url=jdbc:mysql://localhost:3306/dgwx?useUnicode=true&characterEncoding=UTF-8&autoReconnect=true
+jdbc.username=root
+jdbc.password=
+
+
+后台访问路径:
+http://10.152.35.172:8081/tour-manage/login.jsp
+http://10.152.35.172:8081/tour-manage/
+
+转MP4格式后的视频存储路径（在windows服务器上）：
+E:/workspace/dgwx_mg_gonggong/src/main/webapp/videoData/videos/mp4/（存储路径可在application.properties配置文件修改，若路径不存在，保存视频时程序会自动创建）
+
+转MP4格式后的视频截图路径（在windows服务器上）：
+E:/workspace/dgwx_mg_gonggong/src/main/webapp/videoData/videos/img/ 存储路径可在application.properties配置文件修改，若路径不存在，保存视频时程序会自动创建）
+
+
+部署注意事项：
+
+1、若数据库地址发生变动，应当在服务器上部署的程序修改application.properties配置文件的数据库配置。
+application.properties
+
+2、部署程序到服务器时，应当把application.properties配置文件的videoToolsPath路径改为服务器上的路径。否则会出现上传视频后无法转格式和截图，同时无法保存到指定路径下

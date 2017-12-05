@@ -1,0 +1,23 @@
+#main.big{font-size:20px;}
+.big .top {height:45px;}
+.big .content{top:45px;}
+/*title*/
+.big .top-title{font-size:24px;height: 45px; line-height: 45px;}
+
+/*map*/
+.big .zlist ul li{    
+	width: 72px;
+    height: 32px;
+    line-height: 32px;
+}
+.big .blist{
+        width:82px; 
+        top:32px;
+       ul li {
+			    height:48px;
+			    line-height:48px;
+        }
+    }
+/*tool*/
+.big .tools{top:12px}
+.big .toolPop{top:45px;}
